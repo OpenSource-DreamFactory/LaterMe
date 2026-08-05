@@ -4,6 +4,8 @@
 
 LaterMe 是一个面向饮食决策时刻的 AI 微承诺应用。用户在点餐、准备吃夜宵或面对零食时，先与“未来的自己”进行一次简短谈判，再把自己的选择变成一个可执行、可验证、可重复的链上承诺。
 
+Moss 是 LaterMe 的可选 Agent 执行层：它让 AI Agent 能够发现、模拟并安全构建 Monad 链上交易，但必须经过用户确认后才签名发送。
+
 LaterMe 不提供医疗诊断、减重处方或卡路里预测。它解决的是更具体的问题：**用户知道什么选择更符合长期目标，却经常在当下的冲动中放弃。**
 
 ## 1. 黑客松项目价值
@@ -23,6 +25,15 @@ LaterMe 把 Monad 从“部署智能合约的链”变成产品体验的一部�
 - 每个微承诺都可以低成本上链，适合高频、低金额的行为交互。
 - 多个独立的饮食或健康微承诺可以并行创建和结算，为未来的 AI Agent 协同和大规模行为经济提供基础。
 - EVM 兼容使现有 Solidity、viem、wagmi 工具链可以快速构建 MVP。
+
+### 对 Moss 的价值
+
+LaterMe 为 Moss 提供一个真实的 Agent Capability 场景。LaterMe Agent 可以通过 Moss：
+
+- 发现 `create_pact`、`complete_pact`、`cancel_pact` 等链上能力；
+- 在交易发送前模拟 Pact 的资金流和状态变化；
+- 使用结构化 Receipt 验证 `PactCreated`、`PactCompleted` 等事件；
+- 将最终签名权留给用户钱包，而不是交给 AI。
 
 ### 对黑客松评委的展示价值
 
@@ -131,6 +142,22 @@ flowchart LR
     E --> DB
 ```
 
+### Moss Agent 执行层
+
+```mermaid
+flowchart LR
+    A[LaterMe Agent] --> M[Moss Runtime]
+    M --> D[discover / load]
+    M --> AC[action]
+    AC --> S[simulate]
+    S -->|通过| W[用户钱包签名]
+    W --> C[Monad MealPact.sol]
+    C --> R[Receipt Parser]
+    R --> A
+```
+
+MVP 主流程仍使用 `wagmi + viem` 保证三天交付；Moss 作为 Agent Demo 和安全执行层接入。Moss 当前主要面向 Monad 主网，因此 Testnet 需要额外完成 chain 配置和 `protocol-laterme` 适配后才能作为唯一交易路径。
+
 ### 前端
 
 - Next.js + TypeScript；
@@ -194,6 +221,8 @@ AI 只负责生成建议，不负责直接写入合约参数或替用户做决�
 4. 使用 Zod/JSON Schema、时长白名单和行动类型白名单校验；
 5. 对医疗、极端节食、催吐、药物和危险运动请求拒绝；
 6. 超时、429 或格式错误时返回固定安全模板。
+
+当启用 Moss 时，AI 只能生成并模拟未签名交易，不能直接签名或发送。用户确认以下内容后，钱包才会接触交易：Pact 时长、锁定金额、行动文本、目标合约和预期 Receipt。
 
 ## 8. 业务模式与创业潜力
 
@@ -275,4 +304,4 @@ MVP 不发行可交易 Token，不把用户健康数据出售给第三方，也�
 ## 12. 项目文件
 
 - [LATERME_MVP_PLAN.md](./LATERME_MVP_PLAN.md)：完整产品、合约、数据流、测试和开发计划。
-
+- [TECHNICAL_DESIGN.zh-CN.md](./TECHNICAL_DESIGN.zh-CN.md)：Moss、Agent、合约、数据流和接口的详细技术方案。

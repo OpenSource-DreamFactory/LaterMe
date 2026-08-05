@@ -233,4 +233,48 @@ Supabase 表：
 
 ## 14. CEO/Eng 结论
 
-这是一个可在三天内交付的 MVP，核心不是“健康数据上链”，而是“AI 谈判 + Monad 可兑现承诺”。只要不加入视觉识别、ZK、穿戴设备和 Token 经济，范围可控；最大演示风险是钱包 onboarding 和 LLM 失败，因此观摩模式、固定 fallback 和显式交易状态属于必须项。
+这是一个可在三天内交付的 MVP，核心不是“健康数据上链”，而是“AI 谈判 + Monad 可兑现承诺”。Moss 作为可选 Agent 执行层，让 LaterMe Agent 能够 discover → load → action → simulate MealPact 能力，并在用户确认后交给钱包签名；它不拥有私钥，也不替用户发送交易。只要不加入视觉识别、ZK、穿戴设备和 Token 经济，范围可控；最大演示风险是钱包 onboarding、LLM 失败和 Moss Testnet 适配，因此主流程保留 viem/wagmi fallback。
+
+## 15. Moss 集成决策
+
+### 目标
+
+将 `MealPact.sol` 包装为 Moss 可发现、可构建、可模拟和可解析的 Agent Capability，使 AI 能安全准备链上承诺，但最终签名权始终属于用户。
+
+### Protocol Package
+
+新增 `@themoss/protocol-laterme`，维护：
+
+- MealPact 合约地址和 ABI；
+- `create_pact`、`complete_pact`、`cancel_pact`、`expire_pact`、`get_pact`；
+- duration 和 amount 参数规则；
+- `PactCreated`、`PactCompleted`、`PactCancelled`、`PactExpired` Receipt parser；
+- native MON transfer 和状态变化校验。
+
+### 交易安全流程
+
+```text
+Agent discover/load capability
+→ action 构建未签名交易
+→ simulate 验证资金、Event、Receipt 和 Warning
+→ 前端展示人类可读的交易意图
+→ 用户钱包签名发送
+→ Receipt parser 更新 Pact 状态和 XP
+```
+
+### MVP 边界
+
+- 主流程继续使用 `wagmi + viem`，确保 Monad Testnet 三天可交付；
+- Moss 先作为 Agent Demo 和安全模拟层接入；
+- 不把私钥交给 Agent，不使用自动签名或 Relayer；
+- 如果 Moss Testnet chain 配置在 Day 2 前完成，可将 `createPact` Demo 切换到 Moss；否则保留 viem 路径；
+- Moss 当前支持范围和网络配置必须在开发开始时重新确认，不以主网资金作为测试依赖。
+
+### 新增测试
+
+- Capability 参数白名单测试；
+- 模拟成功、回滚和 Warning 测试；
+- Receipt Change 顺序和完整性测试；
+- 用户意图与交易参数一致性测试；
+- Agent 永不签名、永不发送的权限测试；
+- Moss 不可用时回退到 viem/wagmi 的 E2E 测试。
