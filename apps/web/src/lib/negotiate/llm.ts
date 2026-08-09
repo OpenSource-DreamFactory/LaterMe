@@ -1,5 +1,9 @@
 import { NEGOTIATE_SYSTEM_PROMPT, buildNegotiateUserPrompt } from "./prompt.ts";
-import { pactProposalSchema, type PactProposal } from "./schema.ts";
+import {
+  formatProposalValidationError,
+  parsePactProposal,
+  type PactProposal,
+} from "./schema.ts";
 export type LlmConfig = {
   apiKey: string;
   baseUrl: string;
@@ -81,7 +85,11 @@ export async function requestPactProposal(
     }
 
     const parsed = JSON.parse(content) as unknown;
-    return pactProposalSchema.parse(parsed);
+    try {
+      return parsePactProposal(parsed, mealText);
+    } catch (error) {
+      throw new Error(formatProposalValidationError(error));
+    }
   } finally {
     clearTimeout(timer);
   }
