@@ -12,9 +12,9 @@ export const pactActionTypeSchema = z.enum([
 // Keep mins low so short Chinese replies from Kimi still validate.
 export const choiceContentSchema = z.object({
   label: z.string().trim().min(1).max(80),
-  summary: z.string().trim().min(4).max(280),
+  summary: z.string().trim().min(2).max(280),
   actionType: pactActionTypeSchema,
-  actionText: z.string().trim().min(4).max(200),
+  actionText: z.string().trim().min(2).max(200),
 });
 
 export const pactProposalSchema = z.object({
@@ -51,6 +51,12 @@ function asRecord(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
+function ensureMinLength(text: string, minimum: number, pad: string): string {
+  const trimmed = text.trim();
+  if (trimmed.length >= minimum) return trimmed;
+  return `${trimmed}${trimmed ? " · " : ""}${pad}`;
+}
+
 function normalizeChoice(value: unknown, mealText: string): unknown {
   const choice = asRecord(value);
   if (!choice) return value;
@@ -63,17 +69,17 @@ function normalizeChoice(value: unknown, mealText: string): unknown {
   return {
     ...choice,
     label: label || mealText.slice(0, 40) || "Choice",
-    summary:
-      summary.length >= 4
-        ? summary
-        : `${summary || label || mealText} — a respectful next step.`.slice(0, 280),
-    actionText:
-      actionText.length >= 4
-        ? actionText
-        : `${actionText || "Pause for one second"} before the first bite.`.slice(
-            0,
-            200,
-          ),
+    // Pad past historical min(8) so mixed old/new runtimes and short Chinese still pass.
+    summary: ensureMinLength(
+      summary || label || mealText,
+      12,
+      "a respectful next step before the first bite",
+    ).slice(0, 280),
+    actionText: ensureMinLength(
+      actionText || "Pause for one second",
+      12,
+      "before the first bite",
+    ).slice(0, 200),
   };
 }
 

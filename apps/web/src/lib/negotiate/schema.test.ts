@@ -25,7 +25,8 @@ test("accepts short Chinese AI proposals after normalization", () => {
   );
 
   assert.equal(proposal.currentChoice.label, "卤肉");
-  assert.ok(proposal.currentChoice.summary.length >= 4);
-  assert.ok(proposal.currentChoice.actionText.length >= 4);
-  assert.ok(proposal.futureChoice.summary.length >= 4);
+  assert.ok(proposal.currentChoice.summary.length >= 8);
+  assert.ok(proposal.currentChoice.actionText.length >= 8);
+  assert.ok(proposal.futureChoice.summary.length >= 8);
+  assert.ok(proposal.futureChoice.actionText.length >= 8);
 });

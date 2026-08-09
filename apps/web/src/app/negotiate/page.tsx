@@ -74,8 +74,8 @@ export default function NegotiatePage() {
           payload.safety.reason ||
             "Tell LaterMe a bit more specifically what you are about to eat.",
         );
-      } else if (payload.source === "fallback" && payload.fallbackReason) {
-        setError(`Using safe fallback: ${payload.fallbackReason}`);
+      } else if (payload.source === "fallback") {
+        setError("Using a safe local proposal instead of the AI draft.");
       }
     } catch {
       setError("Negotiation is temporarily unavailable. Please try again.");
@@ -159,7 +159,10 @@ export default function NegotiatePage() {
               </span>
             </div>
 
-            {source === "fallback" && fallbackReason && (
+            {source === "fallback" &&
+              fallbackReason &&
+              !/"code"\s*:\s*"too_small"/.test(fallbackReason) &&
+              !fallbackReason.trim().startsWith("[") && (
               <p className="moss-summary">{fallbackReason}</p>
             )}
 

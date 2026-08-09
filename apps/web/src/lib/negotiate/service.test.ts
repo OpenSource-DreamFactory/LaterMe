@@ -97,6 +97,33 @@ test("retries once then falls back when the LLM keeps failing", async () => {
   assert.equal(result.fallbackReason, "boom");
 });
 
+test("hides raw Zod JSON dumps in fallback reasons", async () => {
+  const result = await negotiateMeal(
+    { mealText: "羊肉火锅" },
+    {
+      llmConfig,
+      requestProposal: async () => {
+        throw new Error(
+          JSON.stringify([
+            {
+              origin: "string",
+              code: "too_small",
+              minimum: 8,
+              path: ["currentChoice", "summary"],
+              message: "字符串太短",
+            },
+          ]),
+        );
+      },
+    },
+  );
+
+  assert.equal(result.source, "fallback");
+  assert.equal(result.choices.length, 2);
+  assert.match(result.fallbackReason ?? "", /validation/i);
+  assert.doesNotMatch(result.fallbackReason ?? "", /too_small/);
+});
+
 test("rejects empty meal text", async () => {
   await assert.rejects(() => negotiateMeal({ mealText: " " }), /too_small|String/);
 });

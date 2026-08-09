@@ -44,6 +44,27 @@ function refuseResponse(mealText: string, reason: string): NegotiateResponse {
   };
 }
 
+/** Never surface raw Zod/JSON dumps in the UI. */
+export function sanitizeFallbackReason(reason: string): string {
+  const trimmed = reason.trim();
+  if (!trimmed) {
+    return "AI negotiation failed; using the safe local proposal.";
+  }
+
+  const looksLikeJsonDump =
+    trimmed.startsWith("[") ||
+    trimmed.startsWith("{") ||
+    /"code"\s*:\s*"too_small"/.test(trimmed) ||
+    /"origin"\s*:\s*"string"/.test(trimmed);
+
+  if (looksLikeJsonDump) {
+    return "AI proposal failed validation; using the safe local proposal.";
+  }
+
+  // Cap noisy provider/validation text for the UI.
+  return trimmed.length > 180 ? `${trimmed.slice(0, 177)}…` : trimmed;
+}
+
 function withFallback(
   mealText: string,
   fallbackReason: string,
@@ -54,7 +75,7 @@ function withFallback(
     source: "fallback",
     safety: proposal.safety,
     choices: proposalToChoices(proposal),
-    fallbackReason,
+    fallbackReason: sanitizeFallbackReason(fallbackReason),
   };
 }
 
