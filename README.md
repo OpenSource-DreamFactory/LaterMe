@@ -121,6 +121,20 @@ NEXT_PUBLIC_MEAL_PACT_ADDRESS=0xC187dC6b75DA1255cF9bEb52d8e9585A7e483315
 
 如果页面运行在不支持浏览器扩展的内置浏览器中，请改用安装了钱包的 Chrome profile 打开。
 
+### 部署到 Vercel
+
+这是 pnpm monorepo 里的 Next.js 应用，不是静态站点。在 Vercel Project Settings 中确认：
+
+| 设置 | 值 |
+| --- | --- |
+| Framework Preset | `Next.js` |
+| Root Directory | `apps/web` |
+| Output Directory | **留空**（不要填 `public`） |
+| Install Command | `pnpm install`（或沿用仓库根目录 `vercel.json`） |
+| Build Command | `pnpm --filter @laterme/web build` |
+
+并配置与 `.env.example` 相同的 `NEXT_PUBLIC_*` 环境变量。仓库根目录的 [`vercel.json`](./vercel.json) 已声明 `framework: nextjs` 和 `rootDirectory: apps/web`。
+
 ## 验证项目
 
 ```bash
