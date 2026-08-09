@@ -130,10 +130,9 @@ NEXT_PUBLIC_MEAL_PACT_ADDRESS=0xC187dC6b75DA1255cF9bEb52d8e9585A7e483315
 | Framework Preset | `Next.js` |
 | Root Directory | `apps/web` |
 | Output Directory | **留空**（不要填 `public`） |
-| Install Command | `pnpm install`（或沿用仓库根目录 `vercel.json`） |
-| Build Command | `pnpm --filter @laterme/web build` |
+| Install / Build Command | 默认即可 |
 
-并配置与 `.env.example` 相同的 `NEXT_PUBLIC_*` 环境变量。仓库根目录的 [`vercel.json`](./vercel.json) 已声明 `framework: nextjs` 和 `rootDirectory: apps/web`。
+并配置与 `.env.example` 相同的 `NEXT_PUBLIC_*` 环境变量。`apps/web/vercel.json` 会强制使用 Next.js framework。
 
 ## 验证项目
 
