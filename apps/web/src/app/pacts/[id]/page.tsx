@@ -7,6 +7,7 @@ import { formatEther, keccak256, toHex, zeroHash } from "viem";
 import {
   useAccount,
   useReadContract,
+  useSendTransaction,
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
@@ -16,6 +17,13 @@ import { WalletPanel } from "@/components/wallet-panel";
 import { useNowSeconds } from "@/hooks/use-now-seconds";
 import { isMonadTestnetChain, monadTestnet } from "@/lib/chain";
 import { mealPactAbi, mealPactAddress } from "@/lib/contracts/meal-pact";
+import {
+  buildCancelPactPlan,
+  buildCompletePactPlan,
+  buildExpirePactPlan,
+  executeWithMossFallback,
+  type ExecutionPath,
+} from "@/lib/moss";
 import {
   getPactDisplayStatus,
   getPactStatusClass,
@@ -49,6 +57,8 @@ export default function PactDetailPage() {
   const [pendingAction, setPendingAction] = useState<PactAction>();
   const [transactionHash, setTransactionHash] = useState<`0x${string}`>();
   const [actionError, setActionError] = useState("");
+  const [executionPath, setExecutionPath] = useState<ExecutionPath | null>(null);
+  const [executionSummary, setExecutionSummary] = useState("");
   const pactQuery = useReadContract({
     abi: mealPactAbi,
     address: mealPactAddress,
@@ -60,7 +70,9 @@ export default function PactDetailPage() {
       refetchInterval: 3_000,
     },
   });
-  const { writeContractAsync, isPending: isWalletPending } = useWriteContract();
+  const { writeContractAsync, isPending: isWritePending } = useWriteContract();
+  const { sendTransactionAsync, isPending: isSendPending } = useSendTransaction();
+  const isWalletPending = isWritePending || isSendPending;
   const receiptQuery = useWaitForTransactionReceipt({
     chainId: monadTestnet.id,
     hash: transactionHash,
@@ -68,26 +80,76 @@ export default function PactDetailPage() {
   });
 
   async function submitAction(action: PactAction) {
-    if (!mealPactAddress || !pactId || !address) return;
+    if (!mealPactAddress || !pactId || !address || !pactQuery.data) return;
+    const contractAddress = mealPactAddress;
 
     setPendingAction(action);
     setActionError("");
+    setExecutionPath(null);
+    setExecutionSummary("");
+    const amountWei = pactQuery.data.amount;
+    const completionHash = keccak256(
+      toHex(`laterme-completion:${pactId}:${address}:${Date.now()}`),
+    );
+
     try {
-      const args =
-        action === "completePact"
-          ? ([
-              pactId,
-              keccak256(toHex(`laterme-completion:${pactId}:${address}:${Date.now()}`)),
-            ] as const)
-          : ([pactId] as const);
-      const hash = await writeContractAsync({
-        abi: mealPactAbi,
-        address: mealPactAddress,
-        functionName: action,
-        args,
+      const result = await executeWithMossFallback({
         chainId: monadTestnet.id,
+        buildPlan: () => {
+          if (action === "completePact") {
+            return buildCompletePactPlan({
+              account: address,
+              pactId,
+              completionHash,
+              amountWei,
+            });
+          }
+          if (action === "cancelPact") {
+            return buildCancelPactPlan({
+              account: address,
+              pactId,
+              amountWei,
+            });
+          }
+          return buildExpirePactPlan({
+            account: address,
+            pactId,
+            amountWei,
+          });
+        },
+        sendMossTx: (tx) =>
+          sendTransactionAsync({
+            to: tx.to,
+            data: tx.data,
+            value: tx.value,
+            chainId: tx.chainId,
+          }),
+        sendViemFallback: () => {
+          if (action === "completePact") {
+            return writeContractAsync({
+              abi: mealPactAbi,
+              address: contractAddress,
+              functionName: "completePact",
+              args: [pactId, completionHash],
+              chainId: monadTestnet.id,
+            });
+          }
+          return writeContractAsync({
+            abi: mealPactAbi,
+            address: contractAddress,
+            functionName: action,
+            args: [pactId],
+            chainId: monadTestnet.id,
+          });
+        },
       });
-      setTransactionHash(hash);
+      setExecutionPath(result.path);
+      setExecutionSummary(
+        result.simulationSkippedReason
+          ? `${result.summary ?? ""} (${result.simulationSkippedReason})`
+          : result.summary ?? "",
+      );
+      setTransactionHash(result.hash);
     } catch (error) {
       setPendingAction(undefined);
       setActionError(getErrorMessage(error));
@@ -139,8 +201,17 @@ export default function PactDetailPage() {
               <p className="eyebrow">Onchain pact</p>
               <h1>Pact #{pactId.toString()}</h1>
             </div>
-            <span className={`record-status status-${statusClass}`}>{status}</span>
+            <div className="pact-badges">
+              {executionPath && (
+                <span className="safe-fallback-pill">
+                  {executionPath === "moss" ? "Moss plan" : "Direct wallet path"}
+                </span>
+              )}
+              <span className={`record-status status-${statusClass}`}>{status}</span>
+            </div>
           </div>
+
+          {executionSummary && <p className="moss-summary">{executionSummary}</p>}
 
           {pactQuery.isPending && <div className="detail-loading">Reading Monad…</div>}
 

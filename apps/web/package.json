@@ -8,11 +8,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "node --test src/lib/*.test.ts src/lib/negotiate/*.test.ts",
+    "test": "node --test src/lib/*.test.ts src/lib/negotiate/*.test.ts src/lib/moss/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@laterme/protocol-laterme": "workspace:^",
     "@tanstack/react-query": "5.101.4",
+    "@themoss/core": "0.1.0",
+    "@themoss/simulator": "0.1.0",
     "next": "16.3.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",

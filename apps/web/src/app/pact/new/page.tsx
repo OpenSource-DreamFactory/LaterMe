@@ -12,6 +12,7 @@ import { keccak256, parseEther, parseEventLogs, toHex } from "viem";
 import {
   useAccount,
   useConnect,
+  useSendTransaction,
   useSwitchChain,
   useWaitForTransactionReceipt,
   useWriteContract,
@@ -24,6 +25,12 @@ import {
   mealPactAbi,
   mealPactAddress,
 } from "@/lib/contracts/meal-pact";
+import {
+  DEMO_PACT_AMOUNT,
+  buildCreatePactPlan,
+  executeWithMossFallback,
+  type ExecutionPath,
+} from "@/lib/moss";
 import { parsePactDraft, PACT_DRAFT_STORAGE_KEY } from "@/lib/pact";
 import { initialPactState, pactReducer, type PactPhase } from "@/lib/pact-machine";
 import {
@@ -31,7 +38,7 @@ import {
   getWalletConnectionError,
 } from "@/lib/wallet-connectors";
 
-const depositAmount = "0.001";
+const depositAmount = DEMO_PACT_AMOUNT;
 
 const phaseLabels: Record<PactPhase, string> = {
   DRAFT: "Loading draft",
@@ -80,6 +87,8 @@ export default function NewPactPage() {
     phase: "READY",
   });
   const [walletActionError, setWalletActionError] = useState("");
+  const [executionPath, setExecutionPath] = useState<ExecutionPath | null>(null);
+  const [executionSummary, setExecutionSummary] = useState("");
   const { address, chainId: walletChainId, isConnected } = useAccount();
   const {
     connectors,
@@ -88,7 +97,9 @@ export default function NewPactPage() {
     isPending: isConnecting,
   } = useConnect();
   const { switchChainAsync, isPending: isSwitching } = useSwitchChain();
-  const { writeContractAsync, isPending: isWalletPending } = useWriteContract();
+  const { writeContractAsync, isPending: isWritePending } = useWriteContract();
+  const { sendTransactionAsync, isPending: isSendPending } = useSendTransaction();
+  const isWalletPending = isWritePending || isSendPending;
   const receiptQuery = useWaitForTransactionReceipt({
     chainId: monadTestnet.id,
     hash: state.transactionHash,
@@ -135,19 +146,46 @@ export default function NewPactPage() {
   );
 
   async function createPact() {
-    if (!draft || !proposalHash || !mealPactAddress) return;
+    if (!draft || !proposalHash || !mealPactAddress || !address) return;
+    const contractAddress = mealPactAddress;
 
     dispatch({ type: "REQUEST_SIGNATURE" });
+    setExecutionPath(null);
+    setExecutionSummary("");
     try {
-      const transactionHash = await writeContractAsync({
-        abi: mealPactAbi,
-        address: mealPactAddress,
-        functionName: "createPact",
-        args: [proposalHash, BigInt(draft.choice.durationSeconds)],
+      const result = await executeWithMossFallback({
         chainId: monadTestnet.id,
-        value: parseEther(depositAmount),
+        buildPlan: () =>
+          buildCreatePactPlan({
+            account: address,
+            proposalHash,
+            durationSeconds: draft.choice.durationSeconds,
+            amount: depositAmount,
+          }),
+        sendMossTx: (tx) =>
+          sendTransactionAsync({
+            to: tx.to,
+            data: tx.data,
+            value: tx.value,
+            chainId: tx.chainId,
+          }),
+        sendViemFallback: () =>
+          writeContractAsync({
+            abi: mealPactAbi,
+            address: contractAddress,
+            functionName: "createPact",
+            args: [proposalHash, BigInt(draft.choice.durationSeconds)],
+            chainId: monadTestnet.id,
+            value: parseEther(depositAmount),
+          }),
       });
-      dispatch({ type: "TRANSACTION_SENT", transactionHash });
+      setExecutionPath(result.path);
+      setExecutionSummary(
+        result.simulationSkippedReason
+          ? `${result.summary ?? ""} (${result.simulationSkippedReason})`
+          : result.summary ?? "",
+      );
+      dispatch({ type: "TRANSACTION_SENT", transactionHash: result.hash });
     } catch (error) {
       dispatch({ type: "FAILED", error: getErrorMessage(error) });
     }
@@ -210,10 +248,21 @@ export default function NewPactPage() {
                 </span>
                 <h2>{draft.choice.label}</h2>
               </div>
-              <span className={`phase-badge phase-${state.phase.toLowerCase()}`}>
-                {phaseLabels[state.phase]}
-              </span>
+              <div className="pact-badges">
+                {executionPath && (
+                  <span className="safe-fallback-pill">
+                    {executionPath === "moss" ? "Moss plan" : "Direct wallet path"}
+                  </span>
+                )}
+                <span className={`phase-badge phase-${state.phase.toLowerCase()}`}>
+                  {phaseLabels[state.phase]}
+                </span>
+              </div>
             </div>
+
+            {executionSummary && (
+              <p className="moss-summary">{executionSummary}</p>
+            )}
 
             <div className="pact-action-block">
               <span>I promise to</span>

@@ -768,6 +768,23 @@ a {
   white-space: nowrap;
 }
 
+.pact-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.moss-summary {
+  margin: 18px 0 0;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #eef4ef;
+  color: #2f4a39;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
 .phase-active {
   background: #d9eedf;
   color: #226443;

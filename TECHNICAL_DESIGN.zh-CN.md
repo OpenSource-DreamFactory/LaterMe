@@ -178,9 +178,11 @@ Supabase 只保存投影。若数据库写入失败，保留 txHash 并允许重
 Moss 当前 README 标示的支持范围主要是 Monad 主网，而 LaterMe 黑客松 MVP 使用 Monad Testnet。因此实现必须支持双路径：
 
 ```text
-优先：Moss action → simulate → wallet
-降级：viem prepare/write → wallet → viem receipt
+优先：Moss action → simulate → wallet sendTransaction
+降级：wagmi writeContract → wallet → viem receipt
 ```
+
+P2 已在 `/pact/new` 与 `/pacts/[id]` 落地该双路径；UI 会标注 `Moss plan` 或 `Direct wallet path`。
 
 降级触发条件：
 

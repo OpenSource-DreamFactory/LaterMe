@@ -11,8 +11,8 @@ LaterMe 是一个运行在 Monad 上的微承诺应用。用户在准备吃东�
 - 连接 MetaMask 或 Phantom EVM 钱包；
 - 自动识别并切换至 Monad Testnet；
 - 通过 `/api/negotiate` 生成两个选择（有 LLM key 时用 AI，否则安全 fallback）；
-- 创建锁定 `0.001 MON` 的 1 秒 Meal Pact；
-- 完成、取消或到期 Pact，并自动退款；
+- 创建锁定 `0.001 MON` 的 1 秒 Meal Pact（优先 Moss plan + simulate，失败则 viem 直签）；
+- 完成、取消或到期 Pact，并自动退款（同样 Moss / viem 双路径）；
 - 从 `PactCreated` 事件读取当前钱包的 Pact 列表；
 - 查看 Pact 详情、链上状态、截止时间和交易记录；
 - 每秒更新时间状态、定时刷新链上数据，无需反复刷新页面；
@@ -186,7 +186,7 @@ struct Pact {
 - 强制 `durationSeconds = 1`，锁定金额 `<= 0.01 MON`
 - 当前地址指向 Monad Testnet 部署；接入时用 `createRuntime({ chainId: 10143, … })`
 
-前端仍走 wagmi；P2 会做 Moss / viem 双路径。
+前端创建/结算优先走 Moss `action → simulate → sendTransaction`；若 Registry/模拟失败则自动降级到 wagmi `writeContract`。
 
 ### 合约测试
 
@@ -235,7 +235,8 @@ forge script script/DeployMealPact.s.sol:DeployMealPact \
 
 - 部署前端并配置公开演示地址；
 - ~~加入真实 LLM negotiation API 与严格结构化输出校验~~（P0 已完成；无 key 时自动 fallback）；
-- ~~Moss `@laterme/protocol-laterme` Capability 包~~（P1 已完成；P2 再接到前端双路径）；
+- ~~Moss `@laterme/protocol-laterme` Capability 包~~（P1 已完成）；
+- ~~前端 Moss / viem 双路径~~（P2 已完成；simulate 不可用时降级）；
 - 增加交易级 E2E 测试和移动端钱包测试；
 - 将 1 秒演示时长改为可配置的产品时长；
 - 增加可选的私有完成证明和 XP 投影。

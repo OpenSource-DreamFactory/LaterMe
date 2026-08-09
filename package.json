@@ -3,12 +3,13 @@
   "private": true,
   "packageManager": "pnpm@9.7.0",
   "scripts": {
-    "dev": "pnpm --filter @laterme/web dev",
-    "build": "pnpm --filter @laterme/web build && pnpm --filter @laterme/protocol-laterme build",
+    "postinstall": "pnpm --filter @laterme/protocol-laterme build",
+    "dev": "pnpm --filter @laterme/protocol-laterme build && pnpm --filter @laterme/web dev",
+    "build": "pnpm --filter @laterme/protocol-laterme build && pnpm --filter @laterme/web build",
     "lint": "pnpm --filter @laterme/web lint",
     "test:web": "pnpm --filter @laterme/web test",
     "test:protocol": "pnpm --filter @laterme/protocol-laterme test",
-    "typecheck": "pnpm --filter @laterme/web typecheck && pnpm --filter @laterme/protocol-laterme typecheck",
+    "typecheck": "pnpm --filter @laterme/protocol-laterme typecheck && pnpm --filter @laterme/web typecheck",
     "test:contracts": "cd contracts && forge test"
   }
 }
