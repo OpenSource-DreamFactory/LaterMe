@@ -19,6 +19,7 @@ export default function NegotiatePage() {
   const [submittedMeal, setSubmittedMeal] = useState("");
   const [choices, setChoices] = useState<PactChoice[]>([]);
   const [source, setSource] = useState<NegotiateResponse["source"] | null>(null);
+  const [fallbackReason, setFallbackReason] = useState<string | null>(null);
   const [safetyReason, setSafetyReason] = useState<string | null>(null);
   const [selectedChoice, setSelectedChoice] = useState<PactChoice["id"] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -35,6 +36,7 @@ export default function NegotiatePage() {
 
     setError("");
     setSafetyReason(null);
+    setFallbackReason(null);
     setSelectedChoice(null);
     setChoices([]);
     setSource(null);
@@ -58,6 +60,7 @@ export default function NegotiatePage() {
       }
 
       setSource(payload.source);
+      setFallbackReason(payload.fallbackReason ?? null);
       setSafetyReason(payload.safety.reason);
       setChoices(payload.choices);
 
@@ -71,6 +74,8 @@ export default function NegotiatePage() {
           payload.safety.reason ||
             "Tell LaterMe a bit more specifically what you are about to eat.",
         );
+      } else if (payload.source === "fallback" && payload.fallbackReason) {
+        setError(`Using safe fallback: ${payload.fallbackReason}`);
       }
     } catch {
       setError("Negotiation is temporarily unavailable. Please try again.");
@@ -153,6 +158,10 @@ export default function NegotiatePage() {
                 {source === "llm" ? "AI proposal" : "Safe fallback proposal"}
               </span>
             </div>
+
+            {source === "fallback" && fallbackReason && (
+              <p className="moss-summary">{fallbackReason}</p>
+            )}
 
             <div className="choice-grid">
               {choices.map((choice) => {

@@ -29,7 +29,9 @@ import {
   DEMO_PACT_AMOUNT,
   buildCreatePactPlan,
   executeWithMossFallback,
+  prepareMossTransaction,
   type ExecutionPath,
+  type PreparedMossTx,
 } from "@/lib/moss";
 import { parsePactDraft, PACT_DRAFT_STORAGE_KEY } from "@/lib/pact";
 import { initialPactState, pactReducer, type PactPhase } from "@/lib/pact-machine";
@@ -89,6 +91,8 @@ export default function NewPactPage() {
   const [walletActionError, setWalletActionError] = useState("");
   const [executionPath, setExecutionPath] = useState<ExecutionPath | null>(null);
   const [executionSummary, setExecutionSummary] = useState("");
+  const [mossPreparing, setMossPreparing] = useState(false);
+  const [preparedMoss, setPreparedMoss] = useState<PreparedMossTx | null>(null);
   const { address, chainId: walletChainId, isConnected } = useAccount();
   const {
     connectors,
@@ -133,6 +137,71 @@ export default function NewPactPage() {
   );
   const supportedWallets = getSupportedWalletConnectors(connectors);
 
+  const canPreviewMoss = Boolean(
+    draft &&
+      proposalHash &&
+      mealPactAddress &&
+      isConnected &&
+      address &&
+      isMonadTestnetChain(walletChainId) &&
+      state.phase !== "TX_PENDING" &&
+      state.phase !== "ACTIVE",
+  );
+
+  useEffect(() => {
+    if (!canPreviewMoss || !draft || !proposalHash || !address) {
+      return;
+    }
+
+    let cancelled = false;
+    const start = window.setTimeout(() => {
+      if (!cancelled) setMossPreparing(true);
+    }, 0);
+
+    void (async () => {
+      try {
+        const plan = await buildCreatePactPlan({
+          account: address,
+          proposalHash,
+          durationSeconds: draft.choice.durationSeconds,
+          amount: depositAmount,
+        });
+        const prepared = await prepareMossTransaction(plan);
+        if (cancelled) return;
+        setPreparedMoss(prepared);
+        setExecutionPath("moss");
+        setExecutionSummary(
+          prepared.simulationSkippedReason
+            ? `${prepared.summary} (${prepared.simulationSkippedReason})`
+            : prepared.summary,
+        );
+      } catch (error) {
+        if (cancelled) return;
+        setPreparedMoss(null);
+        setExecutionPath("viem");
+        setExecutionSummary(
+          `Moss preparation unavailable; create will use the direct wallet path. ${getErrorMessage(error)}`,
+        );
+      } finally {
+        if (!cancelled) setMossPreparing(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(start);
+    };
+  }, [address, canPreviewMoss, draft, proposalHash]);
+
+  const pathBadge = canPreviewMoss || state.phase === "TX_PENDING" || state.phase === "ACTIVE"
+    ? executionPath
+    : null;
+  const summaryText =
+    canPreviewMoss || state.phase === "TX_PENDING" || state.phase === "ACTIVE"
+      ? executionSummary
+      : "";
+  const readyMoss = canPreviewMoss ? preparedMoss : null;
+
   const canCreate = Boolean(
     draft &&
       proposalHash &&
@@ -150,9 +219,24 @@ export default function NewPactPage() {
     const contractAddress = mealPactAddress;
 
     dispatch({ type: "REQUEST_SIGNATURE" });
-    setExecutionPath(null);
-    setExecutionSummary("");
     try {
+      if (readyMoss) {
+        const hash = await sendTransactionAsync({
+          to: readyMoss.tx.to,
+          data: readyMoss.tx.data,
+          value: readyMoss.tx.value,
+          chainId: monadTestnet.id,
+        });
+        setExecutionPath("moss");
+        setExecutionSummary(
+          readyMoss.simulationSkippedReason
+            ? `${readyMoss.summary} (${readyMoss.simulationSkippedReason})`
+            : readyMoss.summary,
+        );
+        dispatch({ type: "TRANSACTION_SENT", transactionHash: hash });
+        return;
+      }
+
       const result = await executeWithMossFallback({
         chainId: monadTestnet.id,
         buildPlan: () =>
@@ -249,9 +333,12 @@ export default function NewPactPage() {
                 <h2>{draft.choice.label}</h2>
               </div>
               <div className="pact-badges">
-                {executionPath && (
+                {mossPreparing && canPreviewMoss && (
+                  <span className="safe-fallback-pill">Preparing Moss…</span>
+                )}
+                {!mossPreparing && pathBadge && (
                   <span className="safe-fallback-pill">
-                    {executionPath === "moss" ? "Moss plan" : "Direct wallet path"}
+                    {pathBadge === "moss" ? "Moss plan ready" : "Direct wallet path"}
                   </span>
                 )}
                 <span className={`phase-badge phase-${state.phase.toLowerCase()}`}>
@@ -260,9 +347,13 @@ export default function NewPactPage() {
               </div>
             </div>
 
-            {executionSummary && (
-              <p className="moss-summary">{executionSummary}</p>
-            )}
+            {(mossPreparing && canPreviewMoss) || summaryText ? (
+              <p className="moss-summary">
+                {mossPreparing && canPreviewMoss
+                  ? "Building and simulating the Moss plan before your wallet sees it…"
+                  : summaryText}
+              </p>
+            ) : null}
 
             <div className="pact-action-block">
               <span>I promise to</span>

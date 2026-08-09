@@ -60,7 +60,18 @@ export async function requestPactProposal(
     });
 
     if (!response.ok) {
-      throw new Error(`LLM request failed with status ${response.status}`);
+      const details = await response.text();
+      let detailMessage = details.slice(0, 280);
+      try {
+        const parsed = JSON.parse(details) as {
+          error?: { message?: string; code?: string };
+        };
+        detailMessage =
+          parsed.error?.message || parsed.error?.code || detailMessage;
+      } catch {
+        // keep raw text
+      }
+      throw new Error(`LLM request failed with status ${response.status}: ${detailMessage}`);
     }
 
     const payload = (await response.json()) as ChatCompletionResponse;

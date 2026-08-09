@@ -8,6 +8,7 @@ import {
   type PactProposal,
 } from "./schema.ts";
 import { detectUnsafeMealRequest, looksLikeJailbreak } from "./safety.ts";
+
 export type NegotiateDeps = {
   llmConfig?: LlmConfig | null;
   requestProposal?: typeof requestPactProposal;
@@ -39,6 +40,21 @@ function refuseResponse(mealText: string, reason: string): NegotiateResponse {
     source: "fallback",
     safety: { level: "refuse", reason },
     choices: [],
+    fallbackReason: reason,
+  };
+}
+
+function withFallback(
+  mealText: string,
+  fallbackReason: string,
+): NegotiateResponse {
+  const proposal = fallbackProposal(mealText);
+  return {
+    mealText,
+    source: "fallback",
+    safety: proposal.safety,
+    choices: proposalToChoices(proposal),
+    fallbackReason,
   };
 }
 
@@ -54,26 +70,20 @@ export async function negotiateMeal(
   }
 
   if (looksLikeJailbreak(mealText)) {
-    const proposal = fallbackProposal(mealText);
-    return {
+    return withFallback(
       mealText,
-      source: "fallback",
-      safety: proposal.safety,
-      choices: proposalToChoices(proposal),
-    };
+      "Prompt-injection style input was ignored; using the safe local proposal.",
+    );
   }
 
   const llmConfig = deps.llmConfig === undefined ? readLlmConfig() : deps.llmConfig;
   const requestProposal = deps.requestProposal ?? requestPactProposal;
 
   if (!llmConfig) {
-    const proposal = fallbackProposal(mealText);
-    return {
+    return withFallback(
       mealText,
-      source: "fallback",
-      safety: proposal.safety,
-      choices: proposalToChoices(proposal),
-    };
+      "OPENAI_API_KEY is not configured; using the safe local proposal.",
+    );
   }
 
   try {
@@ -93,8 +103,7 @@ export async function negotiateMeal(
       safety: proposal.safety,
       choices: proposalToChoices(proposal),
     };
-  } catch {
-    // One retry, then fixed safe fallback.
+  } catch (firstError) {
     try {
       const proposal = await requestProposal(mealText, llmConfig);
       if (proposal.safety.level === "refuse") {
@@ -112,14 +121,14 @@ export async function negotiateMeal(
         safety: proposal.safety,
         choices: proposalToChoices(proposal),
       };
-    } catch {
-      const proposal = fallbackProposal(mealText);
-      return {
-        mealText,
-        source: "fallback",
-        safety: proposal.safety,
-        choices: proposalToChoices(proposal),
-      };
+    } catch (secondError) {
+      const reason =
+        secondError instanceof Error
+          ? secondError.message
+          : firstError instanceof Error
+            ? firstError.message
+            : "LLM negotiation failed";
+      return withFallback(mealText, reason);
     }
   }
 }

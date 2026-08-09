@@ -41,6 +41,7 @@ export type NegotiateResponse = {
   source: NegotiateSource;
   safety: PactProposal["safety"];
   choices: PactChoice[];
+  fallbackReason?: string | null;
 };
 
 export function proposalToChoices(proposal: PactProposal): PactChoice[] {

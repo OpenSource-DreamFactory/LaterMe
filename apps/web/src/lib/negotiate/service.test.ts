@@ -42,6 +42,7 @@ test("returns fixed safe fallback when no LLM key is configured", async () => {
   assert.equal(result.choices.length, 2);
   assert.equal(result.choices[0]?.durationSeconds, 1);
   assert.equal(result.safety.level, "normal");
+  assert.match(result.fallbackReason ?? "", /OPENAI_API_KEY/);
 });
 
 test("refuses unsafe medical or extreme requests before calling the LLM", async () => {
@@ -93,6 +94,7 @@ test("retries once then falls back when the LLM keeps failing", async () => {
   assert.equal(calls, 2);
   assert.equal(result.source, "fallback");
   assert.equal(result.choices.length, 2);
+  assert.equal(result.fallbackReason, "boom");
 });
 
 test("rejects empty meal text", async () => {
