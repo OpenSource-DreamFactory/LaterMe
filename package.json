@@ -1,0 +1,13 @@
+{
+  "name": "laterme",
+  "private": true,
+  "packageManager": "pnpm@9.7.0",
+  "scripts": {
+    "dev": "pnpm --filter @laterme/web dev",
+    "build": "pnpm --filter @laterme/web build",
+    "lint": "pnpm --filter @laterme/web lint",
+    "test:web": "pnpm --filter @laterme/web test",
+    "typecheck": "pnpm --filter @laterme/web typecheck",
+    "test:contracts": "cd contracts && forge test"
+  }
+}

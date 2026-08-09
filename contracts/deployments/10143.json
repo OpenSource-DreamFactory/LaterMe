@@ -1,0 +1,9 @@
+{
+  "chainId": 10143,
+  "network": "Monad Testnet",
+  "contract": "MealPact",
+  "address": "0xC187dC6b75DA1255cF9bEb52d8e9585A7e483315",
+  "deploymentBlock": 52095976,
+  "transactionHash": "0xe02ad08a10d348ae936253de16c42a8e807f299f3e23852931b0ba92d8324881",
+  "runtimeCodeHash": "0x5be5f0e427b2c81a6a332360248e2e8574c55e78cb305ec9a3f8be38cce43b66"
+}

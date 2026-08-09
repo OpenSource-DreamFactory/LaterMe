@@ -1,0 +1,15 @@
+[profile.default]
+src = "src"
+test = "test"
+script = "script"
+out = "out"
+libs = ["lib"]
+solc_version = "0.8.24"
+evm_version = "paris"
+optimizer = true
+optimizer_runs = 200
+
+[rpc_endpoints]
+monad_testnet = "${MONAD_TESTNET_RPC_URL}"
+monad_testnet_ws = "${MONAD_TESTNET_WS_URL}"
+monad_mainnet = "${MONAD_MAINNET_RPC_URL}"

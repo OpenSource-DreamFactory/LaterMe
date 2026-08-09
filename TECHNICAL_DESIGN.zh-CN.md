@@ -33,6 +33,9 @@ flowchart TD
 
 - `/`：连接钱包、切换 Monad、观摩模式；
 - `/negotiate`：输入餐食、展示 AI 两个选择；
+- `/pact/new`：审核并创建链上 Pact；
+- `/pacts`：按钱包读取 `PactCreated` 事件并展示 Pact 列表；
+- `/pacts/[id]`：读取最新状态，并完成、取消或到期退款；
 - `/pact/:id`：显示 Pact 状态、倒计时和完成操作；
 - `/pact/:id/result`：展示 Receipt、交易哈希、XP 和分享卡片；
 - 明确区分 `PROPOSAL_READY`、`SIMULATED`、`AWAITING_SIGNATURE`、`TX_PENDING` 和 `ACTIVE`。
@@ -46,7 +49,7 @@ type PactProposal = {
   currentChoice: { label: string; summary: string };
   futureChoice: { label: string; summary: string };
   pact: {
-    durationMinutes: 10 | 15 | 20 | 30;
+    durationSeconds: 1;
     actionType: "walk" | "water" | "portion_swap" | "mindful_pause";
     actionText: string;
   };
@@ -80,7 +83,7 @@ Moss 不能访问用户私钥。模拟通过后，前端才向钱包请求签名
 type LaterMeCapabilities = {
   create_pact: {
     proposalHash: `0x${string}`;
-    durationMinutes: 10 | 15 | 20 | 30;
+    durationSeconds: 1;
     amount: bigint;
   };
   complete_pact: {
@@ -240,4 +243,3 @@ Moss 当前 README 标示的支持范围主要是 Monad 主网，而 LaterMe 黑
 评委最终应记住：
 
 > **LaterMe 的 AI 不会替用户动钱包；它会先把未来的选择变成一笔经过模拟、可解释、由用户亲自确认的 Monad 承诺。**
-
