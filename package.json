@@ -4,10 +4,11 @@
   "packageManager": "pnpm@9.7.0",
   "scripts": {
     "dev": "pnpm --filter @laterme/web dev",
-    "build": "pnpm --filter @laterme/web build",
+    "build": "pnpm --filter @laterme/web build && pnpm --filter @laterme/protocol-laterme build",
     "lint": "pnpm --filter @laterme/web lint",
     "test:web": "pnpm --filter @laterme/web test",
-    "typecheck": "pnpm --filter @laterme/web typecheck",
+    "test:protocol": "pnpm --filter @laterme/protocol-laterme test",
+    "typecheck": "pnpm --filter @laterme/web typecheck && pnpm --filter @laterme/protocol-laterme typecheck",
     "test:contracts": "cd contracts && forge test"
   }
 }

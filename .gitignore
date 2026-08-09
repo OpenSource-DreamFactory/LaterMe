@@ -19,6 +19,9 @@ contracts/cache/
 contracts/out/
 contracts/broadcast/
 
+# Package build outputs
+packages/*/dist/
+
 # Logs / coverage
 *.log
 coverage/

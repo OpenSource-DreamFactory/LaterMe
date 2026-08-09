@@ -75,9 +75,9 @@ discover → load → action → simulate
 
 Moss 不能访问用户私钥。模拟通过后，前端才向钱包请求签名。
 
-### 3.4 `@themoss/protocol-laterme`
+### 3.4 `@laterme/protocol-laterme`
 
-这是 LaterMe 自己实现的 Moss Protocol Package，负责把 MealPact 合约暴露为 Agent 能力。
+这是 LaterMe 自己实现的 Moss Protocol Package（见 `packages/protocol-laterme`），负责把 MealPact 合约暴露为 Agent 能力。P1 已基于已发布的 `@themoss/core@0.1.0` 完成：Capability 返回未签名 `Plan`，并用 `@Event` 观察 `PactCreated` / `PactCompleted` / `PactCancelled` / `PactExpired`（上游 main 的 Receipt tree API 尚未发到 npm，因此 P1 对齐可安装版本）。
 
 ```ts
 type LaterMeCapabilities = {

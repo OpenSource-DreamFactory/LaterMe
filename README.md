@@ -143,13 +143,14 @@ OPENAI_MODEL=gpt-4o-mini
 
 ```bash
 pnpm test:web
+pnpm test:protocol
 pnpm typecheck
 pnpm lint
 pnpm build
 pnpm test:contracts
 ```
 
-当前测试覆盖钱包网络判断、Pact 草稿迁移、谈判 API 的 fallback/拒答/重试、事件区块分段、状态显示、钱包 provider 筛选，以及合约创建和退款安全路径。
+当前测试覆盖钱包网络判断、Pact 草稿迁移、谈判 API 的 fallback/拒答/重试、Moss `protocol-laterme` Capability 计划构建、事件区块分段、状态显示、钱包 provider 筛选，以及合约创建和退款安全路径。
 
 ## 智能合约
 
@@ -175,6 +176,17 @@ struct Pact {
 - `getPact(uint256 pactId)`。
 
 当前演示合约只接受 `1` 秒 duration。完成、取消和到期都会把 Pact 中的原生 MON 退回 owner；合约使用单次状态转换、权限检查和重入保护避免重复结算。
+
+### Moss Protocol 包（P1）
+
+[`packages/protocol-laterme`](./packages/protocol-laterme) 把 `MealPact` 暴露为 Moss Capabilities（基于已发布的 `@themoss/core@0.1.0`）：
+
+- `createPact` / `completePact` / `cancelPact` / `expirePact` / `getPact`
+- 返回未签名 Plan，附带 `expects` 与 `@Event` confirms
+- 强制 `durationSeconds = 1`，锁定金额 `<= 0.01 MON`
+- 当前地址指向 Monad Testnet 部署；接入时用 `createRuntime({ chainId: 10143, … })`
+
+前端仍走 wagmi；P2 会做 Moss / viem 双路径。
 
 ### 合约测试
 
@@ -209,10 +221,11 @@ forge script script/DeployMealPact.s.sol:DeployMealPact \
 
 ```text
 .
-├── apps/web/                 # Next.js 前端
-├── contracts/               # Foundry 合约、测试和部署脚本
-├── LATERME_MVP_PLAN.md       # 产品规划与长期设想
-├── TECHNICAL_DESIGN.zh-CN.md # 扩展架构设计
+├── apps/web/                      # Next.js 前端
+├── contracts/                     # Foundry 合约、测试和部署脚本
+├── packages/protocol-laterme/     # Moss Protocol：MealPact Capabilities
+├── LATERME_MVP_PLAN.md            # 产品规划与长期设想
+├── TECHNICAL_DESIGN.zh-CN.md      # 扩展架构设计
 └── README.md
 ```
 
@@ -222,6 +235,7 @@ forge script script/DeployMealPact.s.sol:DeployMealPact \
 
 - 部署前端并配置公开演示地址；
 - ~~加入真实 LLM negotiation API 与严格结构化输出校验~~（P0 已完成；无 key 时自动 fallback）；
+- ~~Moss `@laterme/protocol-laterme` Capability 包~~（P1 已完成；P2 再接到前端双路径）；
 - 增加交易级 E2E 测试和移动端钱包测试；
 - 将 1 秒演示时长改为可配置的产品时长；
 - 增加可选的私有完成证明和 XP 投影。
