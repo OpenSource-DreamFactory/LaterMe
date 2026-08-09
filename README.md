@@ -10,7 +10,7 @@ LaterMe 是一个运行在 Monad 上的微承诺应用。用户在准备吃东�
 
 - 连接 MetaMask 或 Phantom EVM 钱包；
 - 自动识别并切换至 Monad Testnet；
-- 根据用户输入生成两个本地安全选择；
+- 通过 `/api/negotiate` 生成两个选择（有 LLM key 时用 AI，否则安全 fallback）；
 - 创建锁定 `0.001 MON` 的 1 秒 Meal Pact；
 - 完成、取消或到期 Pact，并自动退款；
 - 从 `PactCreated` 事件读取当前钱包的 Pact 列表；
@@ -78,7 +78,7 @@ flowchart LR
 | Route | 作用 |
 | --- | --- |
 | `/` | 产品首页与钱包连接 |
-| `/negotiate` | 输入食物并选择安全提案 |
+| `/negotiate` | 输入食物，经 `/api/negotiate` 生成两个选择 |
 | `/pact/new` | 审阅并创建 Pact |
 | `/pacts` | 当前钱包的 Pact 列表 |
 | `/pacts/[id]` | Pact 详情与结算操作 |
@@ -109,6 +109,11 @@ pnpm dev
 NEXT_PUBLIC_MONAD_TESTNET_RPC_URL=https://monad-testnet-rpc.huginn.tech
 NEXT_PUBLIC_MONAD_TESTNET_WS_URL=wss://wss.monad-testnet-rpc.huginn.tech
 NEXT_PUBLIC_MEAL_PACT_ADDRESS=0xC187dC6b75DA1255cF9bEb52d8e9585A7e483315
+
+# Optional AI negotiation (OpenAI-compatible). Omit to use safe fallback.
+OPENAI_API_KEY=
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_MODEL=gpt-4o-mini
 ```
 
 ### 钱包设置
@@ -132,7 +137,7 @@ NEXT_PUBLIC_MEAL_PACT_ADDRESS=0xC187dC6b75DA1255cF9bEb52d8e9585A7e483315
 | Output Directory | **留空**（不要填 `public`） |
 | Install / Build Command | 默认即可 |
 
-并配置与 `.env.example` 相同的 `NEXT_PUBLIC_*` 环境变量。`apps/web/vercel.json` 会强制使用 Next.js framework。
+并配置与 `.env.example` 相同的 `NEXT_PUBLIC_*` 环境变量。若要启用真实 AI 谈判，再配置服务端 `OPENAI_API_KEY`（以及可选的 `OPENAI_BASE_URL` / `OPENAI_MODEL`）。`apps/web/vercel.json` 会强制使用 Next.js framework。
 
 ## 验证项目
 
@@ -144,7 +149,7 @@ pnpm build
 pnpm test:contracts
 ```
 
-当前测试覆盖钱包网络判断、Pact 草稿迁移、事件区块分段、状态显示、钱包 provider 筛选，以及合约创建和退款安全路径。
+当前测试覆盖钱包网络判断、Pact 草稿迁移、谈判 API 的 fallback/拒答/重试、事件区块分段、状态显示、钱包 provider 筛选，以及合约创建和退款安全路径。
 
 ## 智能合约
 
@@ -216,7 +221,7 @@ forge script script/DeployMealPact.s.sol:DeployMealPact \
 ## 下一步
 
 - 部署前端并配置公开演示地址；
-- 加入真实 LLM negotiation API 与严格结构化输出校验；
+- ~~加入真实 LLM negotiation API 与严格结构化输出校验~~（P0 已完成；无 key 时自动 fallback）；
 - 增加交易级 E2E 测试和移动端钱包测试；
 - 将 1 秒演示时长改为可配置的产品时长；
 - 增加可选的私有完成证明和 XP 投影。

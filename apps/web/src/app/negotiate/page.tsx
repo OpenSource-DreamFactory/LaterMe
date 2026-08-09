@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 
 import { SiteHeader } from "@/components/site-header";
 import {
-  createSafeProposal,
   PACT_DRAFT_STORAGE_KEY,
   type PactChoice,
 } from "@/lib/pact";
+import type { NegotiateResponse } from "@/lib/negotiate/schema";
 
 const suggestions = ["Fried chicken and milk tea", "A late-night snack", "Office cookies"];
 
@@ -17,15 +17,14 @@ export default function NegotiatePage() {
   const router = useRouter();
   const [mealText, setMealText] = useState("");
   const [submittedMeal, setSubmittedMeal] = useState("");
+  const [choices, setChoices] = useState<PactChoice[]>([]);
+  const [source, setSource] = useState<NegotiateResponse["source"] | null>(null);
+  const [safetyReason, setSafetyReason] = useState<string | null>(null);
   const [selectedChoice, setSelectedChoice] = useState<PactChoice["id"] | null>(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const choices = useMemo(
-    () => (submittedMeal ? createSafeProposal(submittedMeal) : []),
-    [submittedMeal],
-  );
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const normalizedMeal = mealText.trim();
 
@@ -35,8 +34,49 @@ export default function NegotiatePage() {
     }
 
     setError("");
+    setSafetyReason(null);
     setSelectedChoice(null);
+    setChoices([]);
+    setSource(null);
     setSubmittedMeal(normalizedMeal);
+    setLoading(true);
+
+    try {
+      const response = await fetch("/api/negotiate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mealText: normalizedMeal }),
+      });
+
+      const payload = (await response.json()) as NegotiateResponse & {
+        error?: string;
+      };
+
+      if (!response.ok) {
+        setError(payload.error || "Negotiation failed. Try again.");
+        return;
+      }
+
+      setSource(payload.source);
+      setSafetyReason(payload.safety.reason);
+      setChoices(payload.choices);
+
+      if (payload.safety.level === "refuse") {
+        setError(
+          payload.safety.reason ||
+            "LaterMe cannot help with that request. Please seek professional support.",
+        );
+      } else if (payload.safety.level === "needs_clarification") {
+        setError(
+          payload.safety.reason ||
+            "Tell LaterMe a bit more specifically what you are about to eat.",
+        );
+      }
+    } catch {
+      setError("Negotiation is temporarily unavailable. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   function continueWithChoice() {
@@ -76,19 +116,21 @@ export default function NegotiatePage() {
           <div className="meal-input-row">
             <input
               autoComplete="off"
+              disabled={loading}
               id="meal"
               maxLength={280}
               onChange={(event) => setMealText(event.target.value)}
               placeholder="Fried chicken and milk tea"
               value={mealText}
             />
-            <button className="button button-dark" type="submit">
-              Show my options
+            <button className="button button-dark" disabled={loading} type="submit">
+              {loading ? "Negotiating…" : "Show my options"}
             </button>
           </div>
           <div className="suggestion-row">
             {suggestions.map((suggestion) => (
               <button
+                disabled={loading}
                 key={suggestion}
                 onClick={() => setMealText(suggestion)}
                 type="button"
@@ -107,7 +149,9 @@ export default function NegotiatePage() {
                 <p className="eyebrow">Two honest futures</p>
                 <h2>You choose which one becomes real.</h2>
               </div>
-              <span className="safe-fallback-pill">Safe demo proposal</span>
+              <span className="safe-fallback-pill">
+                {source === "llm" ? "AI proposal" : "Safe fallback proposal"}
+              </span>
             </div>
 
             <div className="choice-grid">
@@ -137,7 +181,11 @@ export default function NegotiatePage() {
             </div>
 
             <div className="choice-footer">
-              <p>Nothing is sent onchain until your wallet confirms it.</p>
+              <p>
+                {safetyReason
+                  ? safetyReason
+                  : "Nothing is sent onchain until your wallet confirms it."}
+              </p>
               <button
                 className="button button-accent button-large"
                 disabled={!selectedChoice}
